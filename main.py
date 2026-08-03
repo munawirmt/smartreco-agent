@@ -1,5 +1,6 @@
 import os
 import time
+import pathlib
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +24,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-templates = Jinja2Templates(directory="templates")
+# 🌟 100% FIXED EXPLICIT PATH RESOLUTION FOR LINUX SERVERS (RENDER)
+current_file_path = pathlib.Path(__file__).parent.resolve()
+templates_dir_path = current_file_path / "templates"
+templates = Jinja2Templates(directory=str(templates_dir_path))
 
 # Initialize Mesh AI Client safely
 MESH_API_KEY = os.getenv("MESH_API_KEY")
@@ -32,8 +36,7 @@ client = OpenAI(
     api_key=MESH_API_KEY
 )
 
-# 🌟 MEMORY CACHE DICTIONARY FOR BONUS POINTS
-# Stores: { user_id: {"recommendation": text, "timestamp": float} }
+# MEMORY CACHE DICTIONARY FOR BONUS POINTS
 RECOMMENDATION_CACHE = {}
 CACHE_DURATION_SECONDS = 60  # Cache lasts for 1 minute
 
@@ -73,7 +76,7 @@ def track_event(event: EventLog):
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "failed", "error": str(e)})
 
-# 🌟 SMART AGENT ENDPOINT WITH PRODUCTION CACHING (BONUS POINTS)
+# SMART AGENT ENDPOINT WITH PRODUCTION CACHING (BONUS POINTS)
 @app.get("/get-recommendation")
 def get_recommendation(user_id: str = Query(...)):
     try:
