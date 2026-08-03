@@ -1,0 +1,35 @@
+name: SmartReco Automated Checks
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Syntax Check (Critical)
+        run: |
+          python -m compileall .
+
+      - name: Verify Requirements (Critical)
+        run: |
+          if [ ! -f requirements.txt ] && [ ! -f pyproject.toml ] && [ ! -f Pipfile ]; then
+            echo "Critical Error: No dependency list found."
+            exit 1
+          fi
+          
+      - name: Advisory Checks (Best Practices)
+        run: |
+          if [ -f .env ]; then echo "Warning: .env file committed!"; fi
+          if [ ! -f README.md ]; then echo "Warning: README.md missing!"; fi
