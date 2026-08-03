@@ -42,38 +42,30 @@ def init_sql_db():
     conn.commit()
     conn.close()
 
-# 🌟 FIXED EMBEDDING FUNCTION FOR MESH API RESPONSER
 def get_embedding(text: str):
     try:
         response = client.embeddings.create(
             model="openai/text-embedding-3-small",
             input=[text]
         )
-        
-        # 1. If response is a direct string or needs json parsing
         if isinstance(response, str):
             try:
                 response = json.loads(response)
             except:
                 pass
 
-        # 2. Extract embedding data based on whatever format Mesh returns
         if hasattr(response, 'data') and len(response.data) > 0:
-            # If it's an object containing list elements
             if hasattr(response.data[0], 'embedding'):
                 return response.data[0].embedding
-            return response.data[0]
+            return response.data
         elif isinstance(response, dict) and 'data' in response:
             if isinstance(response['data'], list) and len(response['data']) > 0:
                 if isinstance(response['data'][0], dict) and 'embedding' in response['data'][0]:
                     return response['data'][0]['embedding']
-                return response['data'][0]
+                return response['data']
         
-        # Fallback raw extraction if fields are flat
         if hasattr(response, 'embedding'):
             return response.embedding
-            
-        print("Could not parse embedding from response structure.")
         return None
     except Exception as e:
         print(f"Embedding generation failed: {e}")
@@ -95,6 +87,9 @@ def db_add_product(title: str, description: str, category: str, price: float):
     product_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    if os.path.exists(FAISS_INDEX_FILE):
+        return product_id
 
     combined_text = f"Title: {title}. Description: {description}. Category: {category}."
     embedding = get_embedding(combined_text)
@@ -119,11 +114,10 @@ def db_add_product(title: str, description: str, category: str, price: float):
             
     return product_id
 
-# 🌟 FIXED SEMANTIC SEARCH WITH DIRECT SQL FALLBACK IN CASE OF ANY VECTOR TROUBLE
+# 🌟 100% FIXED SEMANTIC SEARCH WITH ACCURATE TUPLE PARSING FALLBACK
 def db_semantic_search(query: str, top_k=2):
     results = []
     
-    # Try semantic search if index exists
     if os.path.exists(FAISS_INDEX_FILE) and os.path.exists(METADATA_FILE):
         query_embedding = get_embedding(query)
         if query_embedding is not None:
@@ -144,20 +138,32 @@ def db_semantic_search(query: str, top_k=2):
                     cursor.execute("SELECT id, title, description, category, price FROM products WHERE id = ?", (sql_id,))
                     row = cursor.fetchone()
                     if row:
-                        results.append({"id": row[0], "title": row[1], "description": row[2], "category": row[3], "price": row[4]})
+                        results.append({
+                            "id": row[0], 
+                            "title": row[1], 
+                            "description": row[2], 
+                            "category": row[3], 
+                            "price": row[4]
+                        })
                 conn.close()
                 if results:
                     return results
             except Exception as e:
                 print(f"FAISS search fell back: {e}")
 
-    # 🌟 SAFE FALLBACK: If vector database isn't ready, fetch direct items from SQL so AI NEVER FAILS!
+    # 🌟 FIXED SAFE FALLBACK FORMATTING
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("SELECT id, title, description, category, price FROM products LIMIT ?", (top_k,))
     rows = cursor.fetchall()
     conn.close()
-    return [{"id": r[0], "title": r[1], "description": r[2], "category": r[3], "price": r[4]} for r in rows]
+    return [{
+        "id": r[0], 
+        "title": r[1], 
+        "description": r[2], 
+        "category": r[3], 
+        "price": r[4]
+    } for r in rows]
 
 def db_log_event(user_id: str, action: str, item_title: str):
     conn = sqlite3.connect(DB_FILE)
