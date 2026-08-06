@@ -13,6 +13,7 @@ DB_FILE = "products.db"
 FAISS_INDEX_FILE = "products.index"
 METADATA_FILE = "products_meta.pkl"
 
+# 🌟 FIXED: Correct Mesh API URL
 client = OpenAI(
     base_url="https://meshapi.ai",
     api_key=os.getenv("MESH_API_KEY")
@@ -88,9 +89,7 @@ def db_add_product(title: str, description: str, category: str, price: float):
     conn.commit()
     conn.close()
 
-    if os.path.exists(FAISS_INDEX_FILE):
-        return product_id
-
+    # 🌟 FIXED: Removed the early exit bug so subsequent products update correctly
     combined_text = f"Title: {title}. Description: {description}. Category: {category}."
     embedding = get_embedding(combined_text)
     
@@ -114,7 +113,6 @@ def db_add_product(title: str, description: str, category: str, price: float):
             
     return product_id
 
-# 🌟 100% FIXED SEMANTIC SEARCH WITH ACCURATE TUPLE PARSING FALLBACK
 def db_semantic_search(query: str, top_k=2):
     results = []
     
@@ -151,7 +149,6 @@ def db_semantic_search(query: str, top_k=2):
             except Exception as e:
                 print(f"FAISS search fell back: {e}")
 
-    # 🌟 FIXED SAFE FALLBACK FORMATTING
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("SELECT id, title, description, category, price FROM products LIMIT ?", (top_k,))
